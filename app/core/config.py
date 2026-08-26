@@ -11,11 +11,11 @@ class Settings(BaseSettings):
     APP_NAME: str = "Real-World Blog API"
     DEBUG: bool = False
 
-    # Database (Step 1)
-    DATABASE_URL: str
+    # Database (Step 1) — defaults to SQLite for local dev; set via env on Render
+    DATABASE_URL: str = "sqlite:///./blog.db"
 
-    # JWT / Security (Step 4)
-    SECRET_KEY: str
+    # JWT / Security (Step 4) — MUST be set in production via env var
+    SECRET_KEY: str = "change-me-in-production-use-openssl-rand-hex-32"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 

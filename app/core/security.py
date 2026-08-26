@@ -1,30 +1,30 @@
 """
 Step 3 & 4 — Password Hashing + JWT Authentication
+Uses passlib for bcrypt hashing and PyJWT for token signing.
 """
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from jose import JWTError, jwt
-import bcrypt
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import InvalidTokenError
+from passlib.context import CryptContext
 
 from app.core.config import settings
 
 # ─── Password Hashing (Step 3) ───────────────────────────────────────────────
+# passlib handles bcrypt version differences transparently
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
 def hash_password(plain_password: str) -> str:
-    """Hash a plain-text password using bcrypt."""
-    pwd_bytes = plain_password.encode("utf-8")
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(pwd_bytes, salt)
-    return hashed.decode("utf-8")
+    """Hash a plain-text password using bcrypt via passlib."""
+    return pwd_context.hash(plain_password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain-text password against a stored bcrypt hash."""
-    pwd_bytes = plain_password.encode("utf-8")
-    hashed_bytes = hashed_password.encode("utf-8")
     try:
-        return bcrypt.checkpw(pwd_bytes, hashed_bytes)
+        return pwd_context.verify(plain_password, hashed_password)
     except Exception:
         return False
 
@@ -33,11 +33,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """
     Create a signed JWT access token.
-    
+
     Args:
         data: Payload dict (must include 'sub' = user identifier)
         expires_delta: Custom expiry; defaults to settings value
-    
+
     Returns:
         Encoded JWT string
     """
@@ -52,7 +52,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 def decode_access_token(token: str) -> Optional[dict]:
     """
     Decode and verify a JWT token.
-    
+
     Returns:
         Decoded payload dict, or None if invalid/expired
     """
@@ -61,5 +61,5 @@ def decode_access_token(token: str) -> Optional[dict]:
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         return payload
-    except JWTError:
+    except InvalidTokenError:
         return None
