@@ -1,0 +1,49 @@
+# Step 14 — Render Deployment Configuration
+# Docs: https://render.com/docs/yaml-spec
+
+services:
+  # ─── FastAPI Web Service ───────────────────────────────────────────────────
+  - type: web
+    name: blog-api
+    runtime: python
+    region: oregon
+    plan: free
+
+    # Build: install Python dependencies
+    buildCommand: pip install -r requirements.txt
+
+    # Start: run uvicorn on the PORT env var Render provides
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+    # Environment variables — SECRET values are set in Render dashboard
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: blog-db
+          property: connectionString
+
+      - key: SECRET_KEY
+        generateValue: true          # Render auto-generates a secure random value
+
+      - key: ALGORITHM
+        value: HS256
+
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+
+      - key: APP_NAME
+        value: "Real-World Blog API"
+
+      - key: DEBUG
+        value: "False"
+
+    # Health check — Render will restart the service if this fails
+    healthCheckPath: /health
+
+# ─── PostgreSQL Database ──────────────────────────────────────────────────────
+databases:
+  - name: blog-db
+    region: oregon
+    plan: free           # Free tier — expires after 90 days; upgrade for production
+    databaseName: blog_db
+    user: blog_user

@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inkwell — Real-World Blog</title>
+  <meta name="description" content="A modern blog platform powered by FastAPI. Read, write, and discuss articles on any topic." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    /* ═══════════════════════════════════════════════════
+       DESIGN SYSTEM — TOKENS
+    ═══════════════════════════════════════════════════ */
+    :root {
+      --bg-0: #0a0a0f;
+      --bg-1: #12121a;
+      --bg-2: #1a1a26;
+      --bg-3: #22223a;
+      --bg-card: rgba(26,26,38,0.85);
+      --border: rgba(255,255,255,0.08);
+      --border-hover: rgba(139,92,246,0.5);
+
+      --accent: #8b5cf6;
+      --accent-2: #a78bfa;
+      --accent-glow: rgba(139,92,246,0.3);
+      --accent-soft: rgba(139,92,246,0.12);
+      --teal: #2dd4bf;
+      --pink: #f472b6;
+      --amber: #fbbf24;
+
+      --text-primary: #f1f0f9;
+      --text-secondary: #9998b8;
+      --text-muted: #6665a0;
+      --text-link: #a78bfa;
+
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
+
+      --shadow-sm: 0 2px 12px rgba(0,0,0,0.4);
+      --shadow-md: 0 8px 32px rgba(0,0,0,0.5);
+      --shadow-glow: 0 0 30px rgba(139,92,246,0.2);
+
+      --transition: 0.2s ease;
+      --transition-slow: 0.4s cubic-bezier(0.4,0,0.2,1);
+
+      --font-sans: 'Inter', system-ui, sans-serif;
+      --font-serif: 'Merriweather', Georgia, serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-0);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    a { color: var(--text-link); text-decoration: none; }
+    a:hover { color: var(--accent-2); }
+    button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+    input, textarea { font-family: inherit; outline: none; }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-1); }
+    ::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+    /* BACKGROUND ORBS */
+    .bg-orbs { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .bg-orbs::before {
+      content: ''; position: absolute; top: -20%; left: -10%;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%);
+      animation: orbFloat 12s ease-in-out infinite alternate;
+    }
+    .bg-orbs::after {
+      content: ''; position: absolute; bottom: -20%; right: -10%;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(45,212,191,0.1) 0%, transparent 70%);
+      animation: orbFloat 16s ease-in-out infinite alternate-reverse;
+    }
+    @keyframes orbFloat {
+      0% { transform: translate(0,0) scale(1); }
+      100% { transform: translate(40px,40px) scale(1.1); }
+    }
+
+    /* HEADER */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,10,15,0.85);
+      backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--border);
+    }
+    nav {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center; gap: 16px;
+      padding: 0 24px; height: 64px;
+    }
+    .nav-brand {
+      font-size: 1.4rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent-2), var(--teal));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; cursor: pointer; user-select: none; letter-spacing: -0.5px;
+    }
+    .nav-spacer { flex: 1; }
+    .nav-search-wrap { position: relative; flex: 1; max-width: 340px; }
+    .nav-search {
+      width: 100%; padding: 8px 16px 8px 40px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: 40px; color: var(--text-primary);
+      font-size: 0.875rem; transition: var(--transition);
+    }
+    .nav-search:focus { border-color: var(--accent); background: var(--bg-3); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .nav-search::placeholder { color: var(--text-muted); }
+    .nav-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+    .nav-btn { padding: 8px 18px; border-radius: 40px; font-size: 0.875rem; font-weight: 500; transition: var(--transition); }
+    .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent-2); }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), #7c3aed); color: #fff; box-shadow: var(--shadow-glow); }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 40px rgba(139,92,246,0.4); }
+    .btn-danger { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+    .btn-danger:hover { background: rgba(239,68,68,0.25); }
+    .btn-teal { background: linear-gradient(135deg, #0d9488, var(--teal)); color: #fff; }
+    .btn-teal:hover { transform: translateY(-1px); box-shadow: 0 0 30px rgba(45,212,191,0.3); }
+    .user-pill {
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      padding: 6px 14px; border-radius: 40px;
+      background: var(--accent-soft); border: 1px solid var(--border-hover);
+      transition: var(--transition); font-size: 0.875rem; font-weight: 500; color: var(--accent-2);
+    }
+    .user-pill:hover { background: rgba(139,92,246,0.2); }
+    .avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--teal));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+
+    /* MAIN */
+    main { position: relative; z-index: 1; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    /* HERO */
+    .hero { padding: 80px 24px 60px; text-align: center; max-width: 700px; margin: 0 auto; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--accent-soft); border: 1px solid var(--border-hover);
+      border-radius: 40px; padding: 5px 14px;
+      font-size: 0.8rem; font-weight: 500; color: var(--accent-2);
+      margin-bottom: 24px; animation: fadeSlideDown 0.5s ease;
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 5vw, 3.5rem); font-weight: 800; line-height: 1.1; letter-spacing: -1.5px;
+      background: linear-gradient(135deg, var(--text-primary) 40%, var(--accent-2) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 16px; animation: fadeSlideDown 0.6s ease;
+    }
+    .hero p { font-size: 1.1rem; color: var(--text-secondary); line-height: 1.7; animation: fadeSlideDown 0.7s ease; }
+    @keyframes fadeSlideDown { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* POSTS GRID */
+    .posts-section { padding: 0 0 80px; }
+    .posts-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .section-title { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
+    .count-badge {
+      font-size: 0.75rem; font-weight: 600; padding: 2px 10px;
+      background: var(--accent-soft); border-radius: 40px;
+      color: var(--accent-2); border: 1px solid var(--border-hover);
+    }
+    .posts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; }
+    .post-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 28px; cursor: pointer;
+      transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+      backdrop-filter: blur(12px); position: relative; overflow: hidden;
+      animation: cardIn 0.4s ease both;
+    }
+    .post-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--accent-soft) 0%, transparent 60%);
+      opacity: 0; transition: opacity var(--transition);
+    }
+    .post-card:hover { transform: translateY(-4px); border-color: var(--border-hover); box-shadow: var(--shadow-glow); }
+    .post-card:hover::before { opacity: 1; }
+    @keyframes cardIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .card-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--accent-soft); color: var(--accent-2);
+      font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+      padding: 3px 10px; border-radius: 20px; margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 1.15rem; font-weight: 700; line-height: 1.35; color: var(--text-primary); margin-bottom: 10px;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .card-summary {
+      font-size: 0.875rem; color: var(--text-secondary); line-height: 1.65;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 20px;
+    }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 16px; }
+    .card-author { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-secondary); }
+    .card-author .avatar { width: 24px; height: 24px; font-size: 0.65rem; }
+    .card-author strong { color: var(--text-primary); font-weight: 600; }
+    .card-date { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* SKELETON */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-2) 25%, var(--bg-3) 50%, var(--bg-2) 75%);
+      background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .skeleton-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; }
+    .sk-line { height: 14px; margin-bottom: 10px; }
+    .sk-title { height: 22px; margin-bottom: 12px; width: 80%; }
+    .sk-para { height: 12px; margin-bottom: 8px; }
+
+    /* EMPTY STATE */
+    .empty-state { text-align: center; padding: 80px 20px; color: var(--text-muted); }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.4; }
+    .empty-state h3 { font-size: 1.1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+
+    /* PAGINATION */
+    .pagination { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 48px; }
+    .page-btn {
+      padding: 8px 16px; border-radius: var(--radius-sm);
+      background: var(--bg-2); border: 1px solid var(--border);
+      color: var(--text-secondary); font-size: 0.875rem; font-weight: 500;
+      transition: var(--transition); cursor: pointer;
+    }
+    .page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-2); }
+    .page-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: var(--shadow-glow); }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; opacity: 0; pointer-events: none;
+      transition: opacity var(--transition-slow);
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--bg-1); border: 1px solid var(--border);
+      border-radius: var(--radius-xl); padding: 40px;
+      width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+      box-shadow: var(--shadow-md), var(--shadow-glow);
+      transform: scale(0.92) translateY(20px);
+      transition: transform var(--transition-slow); position: relative;
+    }
+    .modal-overlay.open .modal { transform: scale(1) translateY(0); }
+    .modal-close {
+      position: absolute; top: 20px; right: 20px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: 50%; width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-secondary); font-size: 1.1rem; cursor: pointer;
+      transition: var(--transition);
+    }
+    .modal-close:hover { border-color: var(--accent); color: var(--accent-2); }
+    .modal h2 {
+      font-size: 1.5rem; font-weight: 800; margin-bottom: 6px;
+      background: linear-gradient(135deg, var(--text-primary), var(--accent-2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .modal-sub { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 28px; }
+
+    /* FORM */
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 7px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-group input, .form-group textarea {
+      width: 100%; padding: 12px 16px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-size: 0.9rem; transition: var(--transition);
+    }
+    .form-group input:focus, .form-group textarea:focus { border-color: var(--accent); background: var(--bg-3); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .form-group input::placeholder, .form-group textarea::placeholder { color: var(--text-muted); }
+    .form-group textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-error { color: #f87171; font-size: 0.8rem; margin-top: 6px; margin-bottom: 8px; }
+    .form-hint { color: var(--text-muted); font-size: 0.78rem; margin-top: 5px; }
+    .form-tabs { display: flex; gap: 0; margin-bottom: 28px; background: var(--bg-2); border-radius: var(--radius-sm); padding: 4px; }
+    .form-tab { flex: 1; padding: 9px; text-align: center; cursor: pointer; border-radius: 6px; font-size: 0.875rem; font-weight: 500; color: var(--text-muted); transition: var(--transition); border: none; background: transparent; }
+    .form-tab.active { background: var(--accent); color: #fff; box-shadow: var(--shadow-glow); }
+    .btn-full { width: 100%; padding: 13px; border-radius: var(--radius-sm); font-size: 0.95rem; font-weight: 600; margin-top: 6px; }
+    .btn-icon-text { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+
+    /* TOAST */
+    .toast-container { position: fixed; top: 80px; right: 20px; z-index: 500; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+    .toast {
+      padding: 13px 20px; border-radius: var(--radius-md);
+      font-size: 0.875rem; font-weight: 500;
+      box-shadow: var(--shadow-md); pointer-events: all;
+      display: flex; align-items: center; gap: 10px;
+      animation: toastIn 0.3s ease both; max-width: 340px;
+    }
+    .toast.success { background: #064e3b; border: 1px solid #10b981; color: #6ee7b7; }
+    .toast.error   { background: #450a0a; border: 1px solid #ef4444; color: #fca5a5; }
+    .toast.info    { background: #1e1b4b; border: 1px solid var(--accent); color: var(--accent-2); }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(60px); } }
+
+    /* POST DETAIL */
+    #post-detail-page { display: none; }
+    .back-btn { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 0.875rem; cursor: pointer; padding: 8px 0; transition: var(--transition); margin-bottom: 36px; background: none; border: none; }
+    .back-btn:hover { color: var(--accent-2); }
+    .post-detail-wrap { display: grid; grid-template-columns: 1fr 340px; gap: 40px; align-items: start; }
+    @media (max-width: 900px) { .post-detail-wrap { grid-template-columns: 1fr; } }
+    .post-detail-title { font-family: var(--font-serif); font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 700; line-height: 1.25; color: var(--text-primary); margin-bottom: 20px; letter-spacing: -0.5px; }
+    .post-detail-summary { font-size: 1.05rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 32px; font-style: italic; border-left: 3px solid var(--accent); padding-left: 18px; }
+    .post-divider { height: 1px; background: var(--border); margin: 32px 0; }
+    .post-body { font-size: 1rem; line-height: 1.85; color: var(--text-secondary); white-space: pre-wrap; word-break: break-word; }
+    .post-actions-bar { display: flex; gap: 10px; margin-top: 32px; flex-wrap: wrap; }
+    .post-actions-bar .nav-btn { padding: 9px 20px; border-radius: var(--radius-sm); font-size: 0.875rem; }
+    .sidebar-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; backdrop-filter: blur(12px); margin-bottom: 20px; }
+    .sidebar-card h3 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-muted); margin-bottom: 16px; }
+    .author-bio { display: flex; align-items: center; gap: 12px; }
+    .author-bio .avatar { width: 44px; height: 44px; font-size: 1rem; }
+    .author-bio-text strong { display: block; font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
+    .author-bio-text span { font-size: 0.8rem; color: var(--text-muted); }
+    .post-date-info { display: flex; flex-direction: column; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); }
+    .post-date-info span strong { color: var(--text-primary); margin-right: 6px; }
+
+    /* COMMENTS */
+    .comments-section { margin-top: 48px; }
+    .comments-section h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+    .comment-count { background: var(--accent-soft); border: 1px solid var(--border-hover); color: var(--accent-2); font-size: 0.75rem; padding: 2px 10px; border-radius: 40px; }
+    .comment-form-wrap { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; margin-bottom: 28px; }
+    .comment-form-wrap textarea { width: 100%; padding: 12px 16px; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 0.9rem; resize: vertical; min-height: 90px; transition: var(--transition); margin-bottom: 12px; }
+    .comment-form-wrap textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .comment-form-wrap textarea::placeholder { color: var(--text-muted); }
+    .comment-form-actions { display: flex; justify-content: flex-end; }
+    .comment-list { display: flex; flex-direction: column; gap: 16px; }
+    .comment-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px 20px; backdrop-filter: blur(8px); transition: border-color var(--transition); animation: cardIn 0.3s ease both; }
+    .comment-item:hover { border-color: var(--border-hover); }
+    .comment-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .comment-header .avatar { width: 30px; height: 30px; font-size: 0.75rem; }
+    .comment-author-name { font-weight: 600; font-size: 0.875rem; color: var(--text-primary); }
+    .comment-date { font-size: 0.75rem; color: var(--text-muted); margin-left: auto; }
+    .comment-delete-btn { background: none; border: none; color: var(--text-muted); font-size: 0.8rem; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: var(--transition); }
+    .comment-delete-btn:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+    .comment-body { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.65; white-space: pre-wrap; }
+    .comments-pagination { display: flex; justify-content: center; gap: 8px; margin-top: 24px; }
+
+    /* WRITE MODAL */
+    #write-modal .modal { max-width: 720px; }
+    #write-modal .form-group textarea { min-height: 260px; }
+
+    /* SPINNER */
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .spinner.accent { border-top-color: var(--accent); border-color: var(--accent-soft); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .full-spinner { display: flex; justify-content: center; align-items: center; padding: 80px; flex-direction: column; gap: 16px; color: var(--text-muted); font-size: 0.9rem; }
+    .full-spinner .spinner { width: 32px; height: 32px; border-width: 3px; }
+
+    /* CONFIRM MODAL */
+    #confirm-modal .modal { max-width: 400px; text-align: center; padding: 48px 40px; }
+    #confirm-modal .confirm-icon { font-size: 2.5rem; margin-bottom: 16px; }
+    #confirm-modal h2 { font-size: 1.3rem; margin-bottom: 8px; }
+    #confirm-modal p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 28px; }
+    #confirm-modal .confirm-btns { display: flex; gap: 12px; justify-content: center; }
+    #confirm-modal .confirm-btns .nav-btn { padding: 10px 24px; border-radius: var(--radius-sm); }
+
+    /* FOOTER */
+    footer { border-top: 1px solid var(--border); padding: 32px 24px; text-align: center; color: var(--text-muted); font-size: 0.8rem; }
+    footer strong { color: var(--text-secondary); }
+    .footer-links { display: flex; justify-content: center; gap: 20px; margin-top: 10px; }
+    .footer-links a { color: var(--text-muted); transition: var(--transition); }
+    .footer-links a:hover { color: var(--accent-2); }
+
+    /* RESPONSIVE */
+    @media (max-width: 640px) {
+      .posts-grid { grid-template-columns: 1fr; }
+      nav { gap: 10px; }
+      .nav-search-wrap { display: none; }
+      .hero { padding: 48px 20px 40px; }
+      .modal { padding: 28px 20px; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-orbs" aria-hidden="true"></div>
+
+<!-- HEADER -->
+<header>
+  <nav>
+    <span class="nav-brand" id="nav-brand" onclick="showHome()">&#10022; Inkwell</span>
+    <div class="nav-search-wrap">
+      <span class="nav-search-icon">&#128269;</span>
+      <input id="nav-search" class="nav-search" type="search" placeholder="Search articles…" autocomplete="off" />
+    </div>
+    <div class="nav-spacer"></div>
+    <div id="nav-unauth" style="display:flex;gap:8px;">
+      <button class="nav-btn btn-ghost" onclick="openAuth('login')">Sign in</button>
+      <button class="nav-btn btn-primary" onclick="openAuth('register')">Get started</button>
+    </div>
+    <div id="nav-auth" style="display:none;align-items:center;gap:10px;">
+      <button class="nav-btn btn-teal btn-icon-text" onclick="openWriteModal(null)">&#9999;&#65039; Write</button>
+      <div class="user-pill" id="user-pill" onclick="toggleUserMenu()">
+        <div class="avatar" id="nav-avatar">U</div>
+        <span id="nav-username">User</span>
+        <span>&#9660;</span>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<!-- TOAST -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- HOME PAGE -->
+<main id="home-page">
+  <section class="hero container">
+    <div class="hero-badge">&#9889; Powered by FastAPI + PostgreSQL</div>
+    <h1>Where Ideas Come to Life</h1>
+    <p>Discover thoughtful articles, share your knowledge, and join a community of curious minds.</p>
+  </section>
+  <section class="posts-section container">
+    <div class="posts-header">
+      <div class="section-title">
+        Latest Posts <span class="count-badge" id="post-count-badge">&#8212;</span>
+      </div>
+      <div id="search-result-label" style="font-size:0.85rem;color:var(--text-muted);display:none;"></div>
+    </div>
+    <div class="posts-grid" id="posts-grid">
+      <div class="skeleton-card"><div class="skeleton sk-line" style="width:40%"></div><div class="skeleton sk-title"></div><div class="skeleton sk-para"></div><div class="skeleton sk-para" style="width:70%"></div></div>
+      <div class="skeleton-card"><div class="skeleton sk-line" style="width:40%"></div><div class="skeleton sk-title"></div><div class="skeleton sk-para"></div><div class="skeleton sk-para" style="width:70%"></div></div>
+      <div class="skeleton-card"><div class="skeleton sk-line" style="width:40%"></div><div class="skeleton sk-title"></div><div class="skeleton sk-para"></div><div class="skeleton sk-para" style="width:70%"></div></div>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </section>
+</main>
+
+<!-- POST DETAIL PAGE -->
+<div id="post-detail-page">
+  <div class="container" style="padding-top:40px;padding-bottom:80px;">
+    <button class="back-btn" onclick="showHome()">&#8592; Back to all posts</button>
+    <div class="post-detail-wrap">
+      <div class="post-content-col" id="post-content-col">
+        <div class="full-spinner"><div class="spinner accent"></div><span>Loading post…</span></div>
+      </div>
+      <aside class="post-sidebar" id="post-sidebar" style="display:none;">
+        <div class="sidebar-card" id="sidebar-author-card"></div>
+        <div class="sidebar-card" id="sidebar-date-card"></div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="auth-modal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('auth-modal')">&#10005;</button>
+    <h2 id="auth-modal-title">Welcome back</h2>
+    <p class="modal-sub" id="auth-modal-sub">Sign in to your account to continue writing.</p>
+    <div class="form-tabs">
+      <button class="form-tab" id="tab-login" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="form-tab" id="tab-register" onclick="switchAuthTab('register')">Create Account</button>
+    </div>
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label for="login-username">Username</label>
+        <input id="login-username" type="text" placeholder="your_username" required autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required autocomplete="current-password" />
+      </div>
+      <div id="login-error" class="form-error"></div>
+      <button type="submit" class="nav-btn btn-primary btn-full btn-icon-text" id="login-btn">Sign In</button>
+    </form>
+    <form id="register-form" style="display:none;" onsubmit="handleRegister(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="reg-username">Username</label>
+          <input id="reg-username" type="text" placeholder="cool_name" required autocomplete="username" />
+          <div class="form-hint">3 to 50 characters</div>
+        </div>
+        <div class="form-group">
+          <label for="reg-email">Email</label>
+          <input id="reg-email" type="email" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="reg-password">Password</label>
+        <input id="reg-password" type="password" placeholder="Min 8 characters" required autocomplete="new-password" />
+      </div>
+      <div id="register-error" class="form-error"></div>
+      <button type="submit" class="nav-btn btn-primary btn-full btn-icon-text" id="register-btn">Create Account</button>
+    </form>
+  </div>
+</div>
+
+<!-- WRITE / EDIT MODAL -->
+<div class="modal-overlay" id="write-modal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('write-modal')">&#10005;</button>
+    <h2 id="write-modal-title">New Post</h2>
+    <p class="modal-sub">Share your ideas with the world &#10024;</p>
+    <form id="write-form" onsubmit="handleWritePost(event)">
+      <div class="form-group">
+        <label for="post-title-input">Title</label>
+        <input id="post-title-input" type="text" placeholder="An Intriguing Headline…" required maxlength="255" />
+      </div>
+      <div class="form-group">
+        <label for="post-summary-input">Summary <span style="opacity:.5;font-weight:400;">(optional)</span></label>
+        <input id="post-summary-input" type="text" placeholder="A brief one-line description…" maxlength="300" />
+      </div>
+      <div class="form-group">
+        <label for="post-content-input">Content</label>
+        <textarea id="post-content-input" placeholder="Write your article here…" required style="min-height:240px;"></textarea>
+      </div>
+      <div id="write-error" class="form-error"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+        <button type="button" class="nav-btn btn-ghost" onclick="closeModal('write-modal')">Cancel</button>
+        <button type="submit" class="nav-btn btn-primary btn-icon-text" id="write-btn">
+          <span id="write-btn-label">Publish</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="confirm-icon">&#128465;&#65039;</div>
+    <h2 id="confirm-title">Are you sure?</h2>
+    <p id="confirm-body">This action cannot be undone.</p>
+    <div class="confirm-btns">
+      <button class="nav-btn btn-ghost" onclick="closeModal('confirm-modal')">Cancel</button>
+      <button class="nav-btn btn-danger" id="confirm-ok-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div>Built with &#10084;&#65039; using <strong>FastAPI</strong> + <strong>PostgreSQL</strong></div>
+  <div class="footer-links">
+    <a href="/docs" target="_blank">API Docs</a>
+    <a href="/redoc" target="_blank">ReDoc</a>
+    <a href="/health" target="_blank">Health</a>
+  </div>
+</footer>
+
+<script>
+'use strict';
+
+const API = '';
+
+let state = {
+  token: localStorage.getItem('inkwell_token') || null,
+  currentUser: null,
+  currentPage: 1,
+  searchQuery: '',
+  currentPostId: null,
+  commentPage: 1,
+  editingPostId: null,
+};
+
+async function apiFetch(path, options) {
+  options = options || {};
+  var headers = Object.assign({'Content-Type': 'application/json'}, options.headers || {});
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  var resp = await fetch(API + path, Object.assign({}, options, {headers: headers}));
+  if (resp.status === 204) return null;
+  var data = await resp.json().catch(function(){ return {}; });
+  if (!resp.ok) {
+    var msg = data.detail || 'Request failed';
+    if (Array.isArray(msg)) msg = msg.map(function(e){ return e.msg; }).join(', ');
+    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+  }
+  return data;
+}
+
+async function apiFetchForm(path, body) {
+  var resp = await fetch(API + path, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: new URLSearchParams(body).toString(),
+  });
+  var data = await resp.json().catch(function(){ return {}; });
+  if (!resp.ok) {
+    var msg = data.detail || 'Login failed';
+    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+  }
+  return data;
+}
+
+function toast(msg, type, dur) {
+  type = type || 'info'; dur = dur || 3500;
+  var icons = {success: '&#9989;', error: '&#10060;', info: 'ℹ️'};
+  var el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = '<span>' + (icons[type] || '') + '</span><span>' + escapeHtml(msg) + '</span>';
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(function(){
+    el.style.animation = 'toastOut 0.3s ease forwards';
+    setTimeout(function(){ el.remove(); }, 300);
+  }, dur);
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(function(overlay){
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) overlay.classList.remove('open'); });
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(function(m){ m.classList.remove('open'); });
+});
+
+function openAuth(tab) { switchAuthTab(tab); openModal('auth-modal'); }
+function switchAuthTab(tab) {
+  var isLogin = tab === 'login';
+  document.getElementById('login-form').style.display = isLogin ? '' : 'none';
+  document.getElementById('register-form').style.display = isLogin ? 'none' : '';
+  document.getElementById('tab-login').className = 'form-tab' + (isLogin ? ' active' : '');
+  document.getElementById('tab-register').className = 'form-tab' + (!isLogin ? ' active' : '');
+  document.getElementById('auth-modal-title').textContent = isLogin ? 'Welcome back' : 'Join Inkwell';
+  document.getElementById('auth-modal-sub').textContent = isLogin ? 'Sign in to your account.' : 'Create your account and start writing.';
+}
+
+function updateNavAuth() {
+  var loggedIn = !!state.currentUser;
+  document.getElementById('nav-unauth').style.display = loggedIn ? 'none' : 'flex';
+  document.getElementById('nav-auth').style.display = loggedIn ? 'flex' : 'none';
+  if (state.currentUser) {
+    document.getElementById('nav-username').textContent = state.currentUser.username;
+    document.getElementById('nav-avatar').textContent = state.currentUser.username[0].toUpperCase();
+  }
+}
+
+function toggleUserMenu() {
+  if (confirm('Signed in as ' + (state.currentUser ? state.currentUser.username : '') + '\n\nSign out?')) logout();
+}
+
+function logout() {
+  state.token = null; state.currentUser = null;
+  localStorage.removeItem('inkwell_token');
+  updateNavAuth(); toast('Signed out.', 'info'); showHome();
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  var btn = document.getElementById('login-btn');
+  var errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  var username = document.getElementById('login-username').value.trim();
+  var password = document.getElementById('login-password').value;
+  btn.innerHTML = '<span class="spinner"></span> Signing in…';
+  btn.disabled = true;
+  try {
+    var data = await apiFetchForm('/auth/login', {username: username, password: password});
+    state.token = data.access_token;
+    localStorage.setItem('inkwell_token', state.token);
+    await loadCurrentUser();
+    updateNavAuth(); closeModal('auth-modal');
+    toast('Welcome back, ' + state.currentUser.username + '!', 'success');
+  } catch(err) { errEl.textContent = err.message; }
+  finally { btn.innerHTML = 'Sign In'; btn.disabled = false; }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  var btn = document.getElementById('register-btn');
+  var errEl = document.getElementById('register-error');
+  errEl.textContent = '';
+  var username = document.getElementById('reg-username').value.trim();
+  var email = document.getElementById('reg-email').value.trim();
+  var password = document.getElementById('reg-password').value;
+  btn.innerHTML = '<span class="spinner"></span> Creating…';
+  btn.disabled = true;
+  try {
+    await apiFetch('/auth/register', {method:'POST', body: JSON.stringify({username:username,email:email,password:password})});
+    var data = await apiFetchForm('/auth/login', {username:username,password:password});
+    state.token = data.access_token;
+    localStorage.setItem('inkwell_token', state.token);
+    await loadCurrentUser(); updateNavAuth(); closeModal('auth-modal');
+    toast('Welcome, ' + state.currentUser.username + '!', 'success');
+  } catch(err) { errEl.textContent = err.message; }
+  finally { btn.innerHTML = 'Create Account'; btn.disabled = false; }
+}
+
+async function loadCurrentUser() {
+  if (!state.token) return;
+  try { state.currentUser = await apiFetch('/auth/me'); }
+  catch(e) { state.token = null; localStorage.removeItem('inkwell_token'); state.currentUser = null; }
+}
+
+function showHome() {
+  document.getElementById('home-page').style.display = '';
+  document.getElementById('post-detail-page').style.display = 'none';
+  state.currentPostId = null;
+  loadPosts(state.currentPage, state.searchQuery);
+}
+
+async function loadPosts(page, search) {
+  page = page || 1; search = search || '';
+  var grid = document.getElementById('posts-grid');
+  grid.innerHTML = '<div class="skeleton-card"><div class="skeleton sk-line" style="width:40%"></div><div class="skeleton sk-title"></div><div class="skeleton sk-para"></div><div class="skeleton sk-para" style="width:70%"></div></div>'.repeat(3);
+  document.getElementById('pagination').innerHTML = '';
+  var url = '/posts/?page=' + page + '&limit=9';
+  if (search) url += '&search=' + encodeURIComponent(search);
+  try {
+    var data = await apiFetch(url);
+    state.currentPage = data.page;
+    document.getElementById('post-count-badge').textContent = data.total;
+    var label = document.getElementById('search-result-label');
+    if (search) { label.style.display = ''; label.textContent = data.total + ' result' + (data.total !== 1 ? 's' : '') + ' for "' + search + '"'; }
+    else { label.style.display = 'none'; }
+    if (data.items.length === 0) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">&#128205;</div><h3>No posts found</h3><p>' + (search ? 'Try a different search term.' : 'Be the first to write something!') + '</p></div>';
+    } else {
+      grid.innerHTML = data.items.map(function(p, i){ return renderPostCard(p, i); }).join('');
+    }
+    renderPagination(data.page, data.pages);
+  } catch(err) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">&#9888;&#65039;</div><h3>Could not load posts</h3><p>' + escapeHtml(err.message) + '</p></div>';
+  }
+}
+
+function renderPostCard(post, i) {
+  var date = formatDate(post.created_at);
+  var summary = post.summary || truncate(post.content || '', 160);
+  var initials = post.author.username[0].toUpperCase();
+  return '<article class="post-card" onclick="showPostDetail(' + post.id + ')" style="animation-delay:' + (i * 0.05) + 's" tabindex="0" aria-label="' + escapeHtml(post.title) + '">' +
+    '<div class="card-tag">&#10022; Article</div>' +
+    '<h2 class="card-title">' + escapeHtml(post.title) + '</h2>' +
+    '<p class="card-summary">' + escapeHtml(summary) + '</p>' +
+    '<div class="card-footer"><div class="card-author"><div class="avatar" style="width:24px;height:24px;font-size:0.65rem;">' + initials + '</div><strong>' + escapeHtml(post.author.username) + '</strong></div><span class="card-date">' + date + '</span></div>' +
+    '</article>';
+}
+
+function renderPagination(current, total) {
+  if (total <= 1) return;
+  var pag = document.getElementById('pagination');
+  var html = '<button class="page-btn" onclick="goPage(' + (current-1) + ')"' + (current===1?' disabled':'') + '>&#8592; Prev</button>';
+  for (var p = Math.max(1, current-2); p <= Math.min(total, current+2); p++) {
+    html += '<button class="page-btn' + (p===current?' active':'') + '" onclick="goPage(' + p + ')">' + p + '</button>';
+  }
+  html += '<button class="page-btn" onclick="goPage(' + (current+1) + ')"' + (current===total?' disabled':'') + '>Next &#8594;</button>';
+  pag.innerHTML = html;
+}
+
+function goPage(p) { state.currentPage = p; loadPosts(p, state.searchQuery); window.scrollTo({top:0,behavior:'smooth'}); }
+
+async function showPostDetail(postId) {
+  state.currentPostId = postId; state.commentPage = 1;
+  document.getElementById('home-page').style.display = 'none';
+  document.getElementById('post-detail-page').style.display = '';
+  window.scrollTo({top:0,behavior:'instant'});
+  var col = document.getElementById('post-content-col');
+  var sidebar = document.getElementById('post-sidebar');
+  col.innerHTML = '<div class="full-spinner"><div class="spinner accent"></div><span>Loading…</span></div>';
+  sidebar.style.display = 'none';
+  try {
+    var post = await apiFetch('/posts/' + postId);
+    renderPostDetail(post); loadComments(postId, 1);
+  } catch(err) {
+    col.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9888;&#65039;</div><h3>Post not found</h3><p>' + escapeHtml(err.message) + '</p></div>';
+  }
+}
+
+function renderPostDetail(post) {
+  var col = document.getElementById('post-content-col');
+  var sidebar = document.getElementById('post-sidebar');
+  var isOwner = state.currentUser && state.currentUser.id === post.author_id;
+  var postDataStr = encodeURIComponent(JSON.stringify({title:post.title,summary:post.summary,content:post.content}));
+  col.innerHTML =
+    '<div style="margin-bottom:20px;"><div class="card-tag">&#10022; Article</div></div>' +
+    '<h1 class="post-detail-title">' + escapeHtml(post.title) + '</h1>' +
+    (post.summary ? '<p class="post-detail-summary">' + escapeHtml(post.summary) + '</p>' : '') +
+    '<div class="post-divider"></div>' +
+    '<div class="post-body">' + escapeHtml(post.content) + '</div>' +
+    (isOwner ? '<div class="post-actions-bar">' +
+      '<button class="nav-btn btn-ghost btn-icon-text" onclick="openWriteModalEncoded(' + post.id + ', \'' + postDataStr + '\')">&#9999;&#65039; Edit Post</button>' +
+      '<button class="nav-btn btn-danger btn-icon-text" onclick="confirmDeletePost(' + post.id + ')">&#128465;&#65039; Delete Post</button>' +
+    '</div>' : '') +
+    '<div class="comments-section" id="comments-section"></div>';
+  var initials = post.author.username[0].toUpperCase();
+  document.getElementById('sidebar-author-card').innerHTML =
+    '<h3>Author</h3><div class="author-bio"><div class="avatar" style="width:44px;height:44px;font-size:1rem;">' + initials + '</div>' +
+    '<div class="author-bio-text"><strong>' + escapeHtml(post.author.username) + '</strong><span>Member</span></div></div>';
+  document.getElementById('sidebar-date-card').innerHTML =
+    '<h3>Published</h3><div class="post-date-info">' +
+    '<span><strong>Created</strong>' + formatDateLong(post.created_at) + '</span>' +
+    '<span><strong>Updated</strong>' + formatDateLong(post.updated_at) + '</span></div>';
+  sidebar.style.display = '';
+}
+
+function openWriteModalEncoded(postId, encoded) {
+  var postData = JSON.parse(decodeURIComponent(encoded));
+  openWriteModal(postId, postData);
+}
+
+async function loadComments(postId, page) {
+  page = page || 1; state.commentPage = page;
+  var section = document.getElementById('comments-section');
+  if (!section) return;
+  try {
+    var data = await apiFetch('/posts/' + postId + '/comments?page=' + page + '&limit=10');
+    renderComments(data, postId);
+  } catch(err) { if(section) section.innerHTML += '<div class="form-error">' + escapeHtml(err.message) + '</div>'; }
+}
+
+function renderComments(data, postId) {
+  var section = document.getElementById('comments-section');
+  if (!section) return;
+  var isLoggedIn = !!state.currentUser;
+  var html = '<h2>Comments <span class="comment-count">' + data.total + '</span></h2>';
+  if (isLoggedIn) {
+    html += '<div class="comment-form-wrap"><textarea id="comment-input" placeholder="Share your thoughts…" maxlength="2000"></textarea><div class="comment-form-actions"><button class="nav-btn btn-primary btn-icon-text" id="comment-submit-btn" onclick="submitComment(' + postId + ')">Post Comment</button></div></div>';
+  } else {
+    html += '<div style="padding:16px 20px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:24px;font-size:0.875rem;color:var(--text-muted);"><a href="#" onclick="openAuth(\'login\');return false;" style="color:var(--accent-2);">Sign in</a> to leave a comment.</div>';
+  }
+  html += '<div class="comment-list">';
+  if (data.items.length === 0) {
+    html += '<div class="empty-state"><div class="empty-icon">&#128172;</div><h3>No comments yet</h3><p>Start the conversation!</p></div>';
+  } else {
+    data.items.forEach(function(c) {
+      var initials = c.author.username[0].toUpperCase();
+      var isOwner = state.currentUser && state.currentUser.id === c.author.id;
+      html += '<div class="comment-item" id="comment-' + c.id + '"><div class="comment-header">' +
+        '<div class="avatar" style="width:30px;height:30px;font-size:0.75rem;">' + initials + '</div>' +
+        '<span class="comment-author-name">' + escapeHtml(c.author.username) + '</span>' +
+        '<span class="comment-date">' + formatDate(c.created_at) + '</span>' +
+        (isOwner ? '<button class="comment-delete-btn" onclick="confirmDeleteComment(' + c.id + ',' + postId + ')" title="Delete">&#128465;</button>' : '') +
+        '</div><div class="comment-body">' + escapeHtml(c.content) + '</div></div>';
+    });
+  }
+  html += '</div>';
+  if (data.pages > 1) {
+    html += '<div class="comments-pagination">';
+    for (var p = 1; p <= data.pages; p++) {
+      html += '<button class="page-btn' + (p === data.page ? ' active' : '') + '" onclick="loadComments(' + postId + ',' + p + ')">' + p + '</button>';
+    }
+    html += '</div>';
+  }
+  section.innerHTML = html;
+}
+
+async function submitComment(postId) {
+  var input = document.getElementById('comment-input');
+  var btn = document.getElementById('comment-submit-btn');
+  var content = input ? input.value.trim() : '';
+  if (!content) { toast('Comment cannot be empty.', 'error'); return; }
+  btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+  try {
+    await apiFetch('/posts/' + postId + '/comments', {method:'POST', body: JSON.stringify({content:content})});
+    toast('Comment posted!', 'success'); await loadComments(postId, 1);
+  } catch(err) { toast(err.message, 'error'); btn.innerHTML = 'Post Comment'; btn.disabled = false; }
+}
+
+function openWriteModal(postId, postData) {
+  if (!state.currentUser) { openAuth('login'); return; }
+  state.editingPostId = postId || null;
+  document.getElementById('write-modal-title').textContent = postId ? 'Edit Post' : 'New Post';
+  document.getElementById('write-btn-label').textContent = postId ? 'Save Changes' : 'Publish';
+  document.getElementById('write-error').textContent = '';
+  document.getElementById('post-title-input').value = (postData && postData.title) || '';
+  document.getElementById('post-summary-input').value = (postData && postData.summary) || '';
+  document.getElementById('post-content-input').value = (postData && postData.content) || '';
+  openModal('write-modal');
+  setTimeout(function(){ document.getElementById('post-title-input').focus(); }, 300);
+}
+
+async function handleWritePost(e) {
+  e.preventDefault();
+  var btn = document.getElementById('write-btn');
+  var errEl = document.getElementById('write-error');
+  errEl.textContent = '';
+  var title = document.getElementById('post-title-input').value.trim();
+  var summary = document.getElementById('post-summary-input').value.trim();
+  var content = document.getElementById('post-content-input').value.trim();
+  var isEdit = !!state.editingPostId;
+  btn.innerHTML = '<span class="spinner"></span> ' + (isEdit ? 'Saving…' : 'Publishing…');
+  btn.disabled = true;
+  try {
+    var body = {title:title, content:content};
+    if (summary) body.summary = summary;
+    var post;
+    if (isEdit) {
+      post = await apiFetch('/posts/' + state.editingPostId, {method:'PUT', body: JSON.stringify(body)});
+      toast('Post updated!', 'success');
+    } else {
+      post = await apiFetch('/posts/', {method:'POST', body: JSON.stringify(body)});
+      toast('Post published!', 'success');
+    }
+    closeModal('write-modal'); showPostDetail(post.id);
+  } catch(err) {
+    errEl.textContent = err.message;
+    btn.innerHTML = '<span id="write-btn-label">' + (isEdit ? 'Save Changes' : 'Publish') + '</span>';
+    btn.disabled = false;
+  }
+}
+
+function confirmDeletePost(postId) {
+  document.getElementById('confirm-title').textContent = 'Delete Post?';
+  document.getElementById('confirm-body').textContent = 'This will permanently delete the post and all its comments.';
+  var btn = document.getElementById('confirm-ok-btn');
+  btn.onclick = async function() {
+    btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+    try { await apiFetch('/posts/' + postId, {method:'DELETE'}); closeModal('confirm-modal'); toast('Post deleted.', 'info'); showHome(); }
+    catch(err) { toast(err.message, 'error'); }
+    finally { btn.innerHTML = 'Delete'; btn.disabled = false; }
+  };
+  openModal('confirm-modal');
+}
+
+function confirmDeleteComment(commentId, postId) {
+  document.getElementById('confirm-title').textContent = 'Delete Comment?';
+  document.getElementById('confirm-body').textContent = 'This comment will be permanently removed.';
+  var btn = document.getElementById('confirm-ok-btn');
+  btn.onclick = async function() {
+    btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+    try { await apiFetch('/comments/' + commentId, {method:'DELETE'}); closeModal('confirm-modal'); toast('Comment deleted.', 'info'); await loadComments(postId, state.commentPage); }
+    catch(err) { toast(err.message, 'error'); }
+    finally { btn.innerHTML = 'Delete'; btn.disabled = false; }
+  };
+  openModal('confirm-modal');
+}
+
+// SEARCH
+var searchDebounce;
+document.getElementById('nav-search').addEventListener('input', function(e) {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(function() {
+    state.searchQuery = e.target.value.trim();
+    state.currentPage = 1;
+    if (document.getElementById('home-page').style.display === 'none') showHome();
+    else loadPosts(1, state.searchQuery);
+  }, 400);
+});
+
+// Ctrl+K focus search
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); document.getElementById('nav-search').focus(); }
+});
+
+// UTILS
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function truncate(str, len) { return str.length > len ? str.slice(0,len) + '…' : str; }
+function formatDate(iso) {
+  if (!iso) return '';
+  try { return new Intl.DateTimeFormat('en-US', {month:'short',day:'numeric',year:'numeric'}).format(new Date(iso)); }
+  catch(e) { return iso; }
+}
+function formatDateLong(iso) {
+  if (!iso) return '';
+  try { return new Intl.DateTimeFormat('en-US', {month:'long',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }
+  catch(e) { return iso; }
+}
+
+// INIT
+(async function() {
+  if (state.token) { await loadCurrentUser(); updateNavAuth(); }
+  showHome();
+})();
+</script>
+</body>
+</html>
