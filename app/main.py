@@ -19,7 +19,7 @@ Assembles all 14 steps:
 import os
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
@@ -93,14 +93,9 @@ app.add_middleware(
 )
 
 # ─── Static Files & Frontend UI ─────────────────────────────────────────────
-if os.path.exists("static"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
-
-
-@app.get("/ui", include_in_schema=False)
-def serve_ui():
-    """Serve the Blog frontend SPA."""
-    return FileResponse("static/index.html")
+_static_dir = "static"
+if os.path.exists(_static_dir):
+    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 
 # ─── Routers ─────────────────────────────────────────────────────────────────
@@ -110,10 +105,33 @@ app.include_router(comments_router)
 app.include_router(users_router)
 
 
-# ─── Root Endpoint ───────────────────────────────────────────────────────────
-@app.get("/", tags=["Health"], summary="API health check")
+# ─── Root: serve frontend SPA ────────────────────────────────────────────────
+@app.get("/", include_in_schema=False)
 def root():
-    """Health check — confirms the API is running."""
+    """Serve the Blog frontend SPA at the root URL."""
+    index = os.path.join(_static_dir, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    # Fallback JSON if static files aren't present (e.g. API-only deploy)
+    return {
+        "status": "online",
+        "api": settings.APP_NAME,
+        "version": "1.0.0",
+        "docs": "/docs",
+        "ui": "/ui",
+    }
+
+
+@app.get("/ui", include_in_schema=False)
+def serve_ui():
+    """Alias for the Blog frontend SPA."""
+    return RedirectResponse(url="/", status_code=301)
+
+
+# ─── API status (JSON) ────────────────────────────────────────────────────────
+@app.get("/api", tags=["Health"], summary="API status (JSON)")
+def api_status():
+    """Returns API status as JSON."""
     return {
         "status": "online",
         "api": settings.APP_NAME,
