@@ -36,6 +36,9 @@ def create_db_engine_and_session(db_url: str):
 
 # Try to connect using the configured DATABASE_URL
 db_url = settings.DATABASE_URL
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
 engine, SessionLocal = create_db_engine_and_session(db_url)
 
 # Test connection and fallback if needed
