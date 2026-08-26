@@ -93,9 +93,17 @@ app.add_middleware(
 )
 
 # ─── Static Files & Frontend UI ─────────────────────────────────────────────
-_static_dir = "static"
-if os.path.exists(_static_dir):
-    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
+# Resolve static dir robustly: try repo-root-relative, then file-relative
+_repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_static_dir_abs = os.path.join(_repo_root, "static")
+if not os.path.isdir(_static_dir_abs):
+    # fallback: cwd-relative (works locally)
+    _static_dir_abs = os.path.abspath("static")
+
+logger.info(f"Static dir resolved to: {_static_dir_abs} (exists={os.path.isdir(_static_dir_abs)})")
+
+if os.path.isdir(_static_dir_abs):
+    app.mount("/static", StaticFiles(directory=_static_dir_abs), name="static")
 
 
 # ─── Routers ─────────────────────────────────────────────────────────────────
@@ -109,23 +117,27 @@ app.include_router(users_router)
 @app.get("/", include_in_schema=False)
 def root():
     """Serve the Blog frontend SPA at the root URL."""
-    index = os.path.join(_static_dir, "index.html")
+    index = os.path.join(_static_dir_abs, "index.html")
+    logger.info(f"Serving root / — index path: {index} exists={os.path.exists(index)}")
     if os.path.exists(index):
         return FileResponse(index)
-    # Fallback JSON if static files aren't present (e.g. API-only deploy)
+    # Fallback JSON if static files aren't deployed
     return {
         "status": "online",
         "api": settings.APP_NAME,
         "version": "1.0.0",
         "docs": "/docs",
-        "ui": "/ui",
+        "note": "frontend not found — check static/index.html is committed to git",
     }
 
 
 @app.get("/ui", include_in_schema=False)
 def serve_ui():
-    """Alias for the Blog frontend SPA."""
-    return RedirectResponse(url="/", status_code=301)
+    """Serve the Blog frontend SPA (alias)."""
+    index = os.path.join(_static_dir_abs, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return RedirectResponse(url="/docs", status_code=302)
 
 
 # ─── API status (JSON) ────────────────────────────────────────────────────────
